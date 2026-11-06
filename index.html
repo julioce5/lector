@@ -2520,7 +2520,7 @@ html body .table th{color:#4d4c50;font-weight:700}
 html body .dialog{background:#ffffff}
 html body .tag-accent{background:#fdf4de;color:#5f4000}
 </style></helmet>
-<div style="height:100vh;height:100dvh;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr);">
+<div style="height:100vh;height:100dvh;overflow:hidden;display:grid;grid-template-rows:auto auto minmax(0,1fr);">
   <header class="nav" style="gap:var(--space-3);">
     <div class="nav-brand" style="display:flex;align-items:baseline;gap:12px;margin-right:auto;">
       <span style="font-size:24px;">Pedidos</span>
@@ -2539,6 +2539,30 @@ html body .tag-accent{background:#fdf4de;color:#5f4000}
       <input type="file" accept="application/pdf" sc-camel-on-change="{{ onFile }}" style="display:none;">
     </label>
   </header>
+  <section class="catalog-search" style="padding:9px 16px;background:var(--color-surface,#fff);border-bottom:1px solid var(--color-divider);">
+    <div style="display:flex;gap:9px;align-items:center;max-width:100%;">
+      <label for="catalog-search-input" style="font-size:13px;font-weight:700;white-space:nowrap;">Buscar producto</label>
+      <input id="catalog-search-input" class="input" type="search" placeholder="Escribe el nombre o código del producto…" value="{{ searchQuery }}" sc-camel-on-change="{{ onSearch }}" sc-camel-on-input="{{ onSearch }}" style="flex:1;min-width:90px;padding:8px 12px;" autocomplete="off" />
+      <button class="btn btn-secondary" sc-camel-on-click="{{ clearSearch }}" title="Borrar búsqueda" style="padding:8px 12px;">Limpiar</button>
+      <span style="font-size:12px;color:var(--color-neutral-600);white-space:nowrap;">{{ searchCount }}</span>
+    </div>
+    <sc-if value="{{ searchActive }}" hint-placeholder-val="{{ false }}">
+      <div role="region" aria-label="Resultados de búsqueda" style="margin-top:9px;max-height:230px;overflow:auto;border:1px solid var(--color-divider);border-radius:8px;background:var(--color-surface,#fff);">
+        <sc-if value="{{ searchEmpty }}" hint-placeholder-val="{{ false }}">
+          <p style="margin:12px;font-size:13px;color:var(--color-neutral-600);">No se encontraron coincidencias en el texto del PDF. Si el catálogo está escaneado como imagen, esta búsqueda no puede leerlo automáticamente.</p>
+        </sc-if>
+        <sc-for list="{{ searchResults }}" as="hit" hint-placeholder-count="0">
+          <button sc-camel-on-click="{{ hit.open }}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:9px 12px;background:transparent;border:0;border-bottom:1px solid var(--color-divider);cursor:pointer;color:var(--color-text);font:inherit;">
+            <span style="min-width:0;display:flex;flex-direction:column;gap:2px;">
+              <strong style="font-size:13px;overflow-wrap:anywhere;">{{ hit.title }}</strong>
+              <span style="font-size:12px;color:var(--color-neutral-600);overflow-wrap:anywhere;">{{ hit.detail }}</span>
+            </span>
+            <span style="flex:none;font-size:12px;color:var(--color-neutral-600);">Pág. {{ hit.page }} →</span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+  </section>
   <div style="display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:0;">
     <div ref="{{ viewerRef }}" sc-camel-on-drag-over="{{ onDragOver }}" sc-camel-on-drop="{{ onDrop }}" style="overflow:auto;padding:var(--space-4);display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;align-content:flex-start;gap:calc(var(--space-4) + 14px) var(--space-4);background:var(--color-neutral-100);">
       <sc-if value="{{ noPdf }}" hint-placeholder-val="{{ false }}">
@@ -2568,7 +2592,7 @@ html body .tag-accent{background:#fdf4de;color:#5f4000}
             </button>
           </sc-for>
           <sc-if value="{{ page.pop }}" hint-placeholder-val="{{ false }}">
-            <div sc-camel-on-click="{{ stop }}" class="card elev-lg" style="position:absolute;left:{{ page.pop.left }};top:{{ page.pop.top }};width:300px;background:var(--color-bg);cursor:default;z-index:5;gap:10px;">
+            <div sc-camel-on-click="{{ stop }}" class="card elev-lg" style="position:absolute;left:{{ page.pop.left }};top:{{ page.pop.top }};width:300px;background:var(--color-bg);cursor:default;z-index:5;gap:10px;max-height:min(420px,85vh);overflow-y:auto;">
               <div style="display:flex;align-items:center;justify-content:space-between;">
                 <span class="card-kicker">{{ page.pop.kicker }}</span>
                 <button class="btn btn-ghost btn-icon" sc-camel-on-click="{{ closePop }}" style="width:28px;height:28px;" title="Cerrar"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
@@ -2578,6 +2602,7 @@ html body .tag-accent{background:#fdf4de;color:#5f4000}
                 <div class="field" style="margin:0;"><label>Cantidad</label><input data-qty="1" class="input" type="number" min="1" value="{{ page.pop.qty }}" sc-camel-on-change="{{ onPopQty }}" sc-camel-on-key-down="{{ onPopKey }}" style="font-feature-settings:'tnum';"></div>
               </div>
               <div class="field" style="margin:0;"><label>Producto</label><textarea class="input" rows="2" value="{{ page.pop.name }}" sc-camel-on-change="{{ onPopName }}" sc-camel-on-key-down="{{ onPopKey }}" style="resize:vertical;"></textarea></div>
+              <div class="field" style="margin:0;"><label for="product-observation">Observación (opcional)</label><textarea id="product-observation" class="input" rows="2" value="{{ page.pop.observation }}" sc-camel-on-change="{{ onPopObservation }}" placeholder="Ej.: Color azul, talla M, entregar el lunes…" style="resize:vertical;"></textarea></div>
               <div style="display:flex;gap:8px;justify-content:flex-end;">
                 <sc-if value="{{ page.pop.editing }}" hint-placeholder-val="{{ false }}"><button class="btn btn-ghost" sc-camel-on-click="{{ removePop }}" style="margin-right:auto;">Quitar</button></sc-if>
                 <button class="btn btn-primary" sc-camel-on-click="{{ savePop }}">{{ page.pop.saveLabel }}</button>
@@ -2606,6 +2631,7 @@ html body .tag-accent{background:#fdf4de;color:#5f4000}
             <button sc-camel-on-click="{{ it.goTo }}" style="all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0;" title="Ver en el catálogo">
               <span style="font-size:12px;color:var(--color-accent-700);font-feature-settings:'tnum';letter-spacing:0.03em;">{{ it.code }} · pág. {{ it.page }}</span>
               <span style="font-size:14px;line-height:1.3;text-wrap:pretty;">{{ it.name }}</span>
+              <sc-if value="{{ it.hasObservation }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:var(--color-neutral-600);line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere;">Obs.: {{ it.observation }}</span></sc-if>
             </button>
             <div style="display:flex;align-items:center;gap:2px;">
               <button class="btn btn-ghost btn-icon" sc-camel-on-click="{{ it.dec }}" style="width:28px;height:28px;" title="Menos"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
@@ -2673,7 +2699,7 @@ async function pdfStore(mode, value) {
 
 
 class Component extends DCLogic {
-  state = { pages: [], items: [], loading: true, fileName: '', pop: null, copied: false, msgOverride: null, zoom: load('zoom', 1), sel: null, ...load('prov', { provider: '', phone: '' }), provs: load('provs', []), pdfSaveStatus: '' };
+  state = { pages: [], items: [], loading: true, fileName: '', pop: null, copied: false, msgOverride: null, zoom: load('zoom', 1), sel: null, ...load('prov', { provider: '', phone: '' }), provs: load('provs', []), pdfSaveStatus: '', searchQuery: '' };
   viewerRef = React.createRef();
   qtyRef = React.createRef();
   texts = {};
@@ -2711,7 +2737,7 @@ class Component extends DCLogic {
       }
     }
     const doc = await this.pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
-    this.texts = {}; this._prod = {};
+    this.texts = {}; this._prod = {}; this.setState({ searchQuery: '' });
     for (let n = 1; n <= doc.numPages; n++) {
       if (token !== this.loadToken) return;
       const page = await doc.getPage(n);
@@ -2863,7 +2889,7 @@ class Component extends DCLogic {
       } catch (err) { console.warn(err); }
     }
     const { code, name } = parsed;
-    this.setState({ sel: null, pop: { id: Date.now(), page: n, x: (s.x1 + s.x2) / 2, y: (s.y1 + s.y2) / 2, code, name, qty: 1, editing: false, ocr } });
+    this.setState({ sel: null, pop: { id: Date.now(), page: n, x: (s.x1 + s.x2) / 2, y: (s.y1 + s.y2) / 2, code, name, qty: 1, observation: '', editing: false, ocr } });
     this.focusQty();
   }
 
@@ -2930,7 +2956,7 @@ class Component extends DCLogic {
     }
     const existing = auto.code && this.state.items.find(i => i.code === auto.code);
     if (existing) return this.openEdit(existing);
-    this.setState({ pop: { id: Date.now(), page: n, x, y, code: auto.code, name: auto.name, qty: 1, editing: false } });
+    this.setState({ pop: { id: Date.now(), page: n, x, y, code: auto.code, name: auto.name, qty: 1, observation: '', editing: false } });
     this.focusQty();
   }
   openEdit(it) { this.setState({ pop: { ...it, id: Date.now(), editId: it.id, editing: true } }); this.focusQty(); }
@@ -2938,7 +2964,7 @@ class Component extends DCLogic {
   savePop = () => {
     const p = this.state.pop; if (!p) return;
     const qty = Math.max(1, parseInt(p.qty) || 1);
-    const rec = { id: p.editId || 'i' + Date.now(), page: p.page, x: p.x, y: p.y, code: p.code.trim(), name: p.name.trim(), qty };
+    const rec = { id: p.editId || 'i' + Date.now(), page: p.page, x: p.x, y: p.y, code: p.code.trim(), name: p.name.trim(), qty, observation: (p.observation || '').trim() };
     this.setItems(items => p.editId ? items.map(i => i.id === p.editId ? rec : i) : [...items, rec]);
     this.setState({ pop: null });
   };
@@ -2948,7 +2974,11 @@ class Component extends DCLogic {
     const { items, provider } = this.state;
     if (!items.length) return '';
     const cols = this.props.messageStyle === 'columnas';
-    const lines = items.map(i => cols ? `${i.code} | ${i.name} | Cant: ${i.qty}` : `• *${i.qty} UND* - ${i.code} — ${i.name}`);
+    const lines = items.map(i => {
+      const productLine = cols ? `${i.code} | ${i.name} | Cant: ${i.qty}` : `• *${i.qty} UND* - ${i.code} — ${i.name}`;
+      const observation = (i.observation || '').trim();
+      return observation ? `${productLine}\n  Observación: ${observation}` : productLine;
+    });
     return `Hola${provider ? ' ' + provider : ''}, buenas. Les hago el siguiente pedido:\n\n${lines.join('\n')}\n\nGracias.`;
   }
 
@@ -2967,6 +2997,56 @@ class Component extends DCLogic {
     }
   }
 
+  // Buscador por nombre o código, apoyado en la capa de texto real del PDF.
+  // Si los nombres no pudieron asociarse a un código, ofrece coincidencias de texto por página.
+  searchCatalog(query) {
+    const normalize = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const q = normalize(query);
+    if (!q) return [];
+    const terms = q.split(' ').filter(Boolean);
+    const matches = value => terms.every(t => normalize(value).includes(t));
+    const hits = [], seen = new Set();
+    for (const page of this.state.pages) {
+      const n = page.n;
+      const ps = this.products(n);
+      for (const prod of ps) {
+        if (!matches(prod.code + ' ' + prod.name)) continue;
+        const id = n + ':' + prod.code + ':' + prod.name;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        hits.push({ page:n, code:prod.code, name:prod.name, title:prod.name || prod.code,
+          detail:'Código: ' + prod.code + (prod.name ? ' · Ir al producto' : ' · Ver en PDF'), product:prod, score:normalize(prod.code) === q ? 0 : normalize(prod.code).includes(q) ? 1 : 2 });
+      }
+      // Búsqueda de respaldo: cubre nombres distribuidos en varias líneas y PDF sin códigos detectables.
+      const txt = (this.texts[n] || []).filter(i => !i.rot).sort((a,b) => (Math.abs(a.y-b.y)<.008 ? a.x-b.x : a.y-b.y));
+      const lines = [];
+      for (const it of txt) {
+        let line = lines[lines.length-1];
+        if (!line || Math.abs(line.y-it.y)>.008) lines.push(line={y:it.y,parts:[]});
+        line.parts.push(it.str);
+      }
+      const contents = lines.map(x=>x.parts.join(' '));
+      let pageMatches = 0;
+      for (let i=0;i<contents.length && pageMatches<5;i++) {
+        const text = contents.slice(Math.max(0,i-1),Math.min(contents.length,i+2)).join(' ');
+        if (!matches(text)) continue;
+        // Si ya existe una coincidencia de producto para esta misma página, no duplicar toda la lista.
+        if (hits.some(h=>h.page===n && h.product && matches(h.code+' '+h.name))) break;
+        hits.push({ page:n,title:contents[i].slice(0,135)||'Coincidencia en PDF',detail:'Coincidencia en el texto · Ver página',score:3 });
+        pageMatches++;
+        i+=1;
+      }
+    }
+    return hits.sort((a,b)=>a.score-b.score || a.page-b.page).slice(0,40);
+  }
+
+  openSearchResult(hit) {
+    // Solo navegar a la página del PDF. La selección del producto es manual.
+    // También ocultar los resultados y cualquier formulario emergente previo.
+    this.setState({ searchQuery: '', pop: null });
+    this.goTo(hit.page);
+  }
+
   renderVals() {
     const { pages, items, pop, loading, fileName, provider, phone, provs, copied, msgOverride, zoom, sel } = this.state;
     const setZoom = z => { z = Math.round(Math.min(2, Math.max(0.3, z)) * 10) / 10; localStorage.setItem(LS + 'zoom', z); this.setState({ zoom: z }); };
@@ -2977,7 +3057,14 @@ class Component extends DCLogic {
     const units = items.reduce((a, i) => a + (+i.qty || 0), 0);
     const pct = v => (v * 100).toFixed(2) + '%';
     const setPop = k => e => { const v = e.target.value; this.setState(s => ({ pop: { ...s.pop, [k]: v } })); };
+    const searchQuery = this.state.searchQuery || '';
+    const searchResults = searchQuery.trim() ? this.searchCatalog(searchQuery) : [];
     return {
+      searchQuery, onSearch: e => this.setState({searchQuery:e.target.value}),
+      clearSearch: () => this.setState({searchQuery:''}), searchActive: !!searchQuery.trim(),
+      searchEmpty: !!searchQuery.trim() && !searchResults.length,
+      searchCount: searchQuery.trim() ? `${searchResults.length}${searchResults.length===40 ? '+' : ''} resultado(s)` : '',
+      searchResults: searchResults.map(h=>({...h,open:()=>this.openSearchResult(h)})),
       zoomLabel: Math.round(zoom * 100) + '%', zoomIn: () => setZoom(zoom + 0.1), zoomOut: () => setZoom(zoom - 0.1), zoomReset: () => setZoom(1),
       noPdf: !loading && !pages.length && !fileName, openLabel: fileName ? 'Abrir otro PDF' : 'Abrir PDF',
       fileName, loading, pdfSaveStatus: this.state.pdfSaveStatus, viewerRef: this.viewerRef, qtyRef: this.qtyRef,
@@ -2988,15 +3075,15 @@ class Component extends DCLogic {
         sel: sel && sel.page === p.n ? { left: pct(sel.x1), top: pct(sel.y1), width: pct(sel.x2 - sel.x1), height: pct(sel.y2 - sel.y1), reading: !!sel.reading } : null,
         marks: items.filter(i => i.page === p.n).map(i => ({ left: pct(i.x), top: pct(i.y), qty: i.qty, title: `${i.code} ${i.name}`, onClick: e => { e.stopPropagation(); this.openEdit(i); } })),
         pop: pop && pop.page === p.n ? {
-          left: `min(calc(${pct(pop.x)} + 12px), calc(100% - 312px))`, top: `min(calc(${pct(pop.y)} + 12px), calc(100% - 340px))`,
-          code: pop.code, name: pop.name, qty: pop.qty, editing: pop.editing,
+          left: `min(calc(${pct(pop.x)} + 12px), calc(100% - 312px))`, top: `min(calc(${pct(pop.y)} + 12px), calc(100% - 420px))`,
+          code: pop.code, name: pop.name, qty: pop.qty, observation: pop.observation || '', editing: pop.editing,
           kicker: pop.editing ? 'Editar producto' : pop.ocr ? 'Leído de la imagen · revisa' : (pop.code ? 'Producto detectado' : 'No detectado · arrastra un recuadro'),
           saveLabel: pop.editing ? 'Guardar' : 'Agregar al pedido',
         } : null,
       })),
       stop: e => e.stopPropagation(),
       closePop: () => this.setState({ pop: null }),
-      onPopCode: setPop('code'), onPopName: setPop('name'), onPopQty: setPop('qty'),
+      onPopCode: setPop('code'), onPopName: setPop('name'), onPopQty: setPop('qty'), onPopObservation: setPop('observation'),
       onPopKey: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.savePop(); } if (e.key === 'Escape') this.setState({ pop: null }); },
       savePop: this.savePop, removePop: this.removePop,
       provider, phone, provList: provs,
@@ -3006,6 +3093,7 @@ class Component extends DCLogic {
       summary: items.length ? `${items.length} producto${items.length > 1 ? 's' : ''} · ${units} u.` : '',
       items: items.map(i => ({
         ...i,
+        observation: i.observation || '', hasObservation: !!(i.observation || '').trim(),
         goTo: () => this.goTo(i.page),
         dec: () => this.setItems(a => a.map(x => x.id === i.id ? { ...x, qty: Math.max(0, x.qty - 1) } : x).filter(x => x.qty > 0)),
         remove: () => this.setItems(a => a.filter(x => x.id !== i.id)),
