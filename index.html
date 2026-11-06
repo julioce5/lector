@@ -2525,6 +2525,7 @@ html body .tag-accent{background:#fdf4de;color:#5f4000}
     <div class="nav-brand" style="display:flex;align-items:baseline;gap:12px;margin-right:auto;">
       <span style="font-size:24px;">Pedidos</span>
       <span style="font-family:var(--font-body);font-size:13px;color:var(--color-neutral-600);font-style:italic;">{{ fileName }}</span>
+      <span style="font-size:11px;color:var(--color-neutral-600);">{{ pdfSaveStatus }}</span>
     </div>
     <span style="font-size:12px;color:var(--color-neutral-600);max-width:240px;line-height:1.3;min-width:0;">Clic en un producto, o arrastra un recuadro sobre su código y nombre</span>
     <div style="display:flex;align-items:center;gap:2px;border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:2px;">
@@ -2618,7 +2619,7 @@ html body .tag-accent{background:#fdf4de;color:#5f4000}
       <div style="border-top:1px solid var(--color-divider);padding:var(--space-3) var(--space-4);display:flex;flex-direction:column;gap:10px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;">
           <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);">Mensaje para WhatsApp</span>
-          <button class="btn btn-ghost" sc-camel-on-click="{{ clearAll }}" style="font-size:12px;">Vaciar pedido</button>
+          <button class="btn btn-ghost" sc-camel-on-click="{{ clearAll }}" style="font-size:12px;">Borrar pedido</button>
         </div>
         <textarea class="input" rows="5" value="{{ message }}" sc-camel-on-change="{{ onMessage }}" style="font-size:13px;line-height:1.45;resize:vertical;white-space:pre-wrap;"></textarea>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -2644,8 +2645,35 @@ const COD_LABEL_RE = /^\s*C[ÓO]D(?:IGO)?\.?\s*[:#º°]?\s*$/i;
 const NOISE_RE = /www\.|@|^COD\b/i;
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(LS + k)) ?? d; } catch (e) { return d; } };
 
+// El catálogo PDF se conserva en IndexedDB (localStorage no admite archivos grandes).
+const PDF_DB = 'pedidos-pdf-catalogo-v1';
+function openPdfDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) return reject(new Error('IndexedDB no disponible'));
+    const req = indexedDB.open(PDF_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('catalogos');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('No se pudo abrir el almacenamiento'));
+  });
+}
+async function pdfStore(mode, value) {
+  const db = await openPdfDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction('catalogos', mode === 'read' ? 'readonly' : 'readwrite');
+      const store = tx.objectStore('catalogos');
+      const req = mode === 'read' ? store.get('actual') : store.put(value, 'actual');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Operación cancelada'));
+    });
+  } finally { db.close(); }
+}
+
+
 class Component extends DCLogic {
-  state = { pages: [], items: [], loading: true, fileName: '', pop: null, copied: false, msgOverride: null, zoom: load('zoom', 1), sel: null, ...load('prov', { provider: '', phone: '' }), provs: load('provs', []) };
+  state = { pages: [], items: [], loading: true, fileName: '', pop: null, copied: false, msgOverride: null, zoom: load('zoom', 1), sel: null, ...load('prov', { provider: '', phone: '' }), provs: load('provs', []), pdfSaveStatus: '' };
   viewerRef = React.createRef();
   qtyRef = React.createRef();
   texts = {};
@@ -2657,11 +2685,31 @@ class Component extends DCLogic {
     this.pdfjs = await import(R.pdfjs ? await asJs(R.pdfjs) : 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs');
     this.pdfjs.GlobalWorkerOptions.workerSrc = R.pdfworker ? await asJs(R.pdfworker) : 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
     this.setState({ loading: false, ready: true });
+    // Recupera el último catálogo almacenado, sin pedir que lo vuelvan a subir.
+    try {
+      const stored = await pdfStore('read');
+      if (stored && stored.fileName && stored.blob && !this.loadToken) {
+        await this.openPdf(await stored.blob.arrayBuffer(), stored.fileName, true);
+      }
+    } catch (err) {
+      console.warn('No fue posible recuperar el PDF guardado:', err);
+    }
   }
 
-  async openPdf(buf, fileName) {
+  async openPdf(buf, fileName, restored = false) {
     const token = this.loadToken = (this.loadToken || 0) + 1;
-    this.setState({ loading: true, pages: [], pop: null, fileName, items: load('items:' + fileName, []), msgOverride: null });
+    this.setState({ loading: true, pages: [], pop: null, fileName, items: load('items:' + fileName, []), msgOverride: null,
+      pdfSaveStatus: restored ? 'PDF recuperado automáticamente' : 'Guardando PDF…' });
+    // Guardar antes de entregar los bytes a pdf.js, que puede transferir el ArrayBuffer.
+    if (!restored) {
+      try {
+        await pdfStore('write', { fileName, blob: new Blob([buf], { type: 'application/pdf' }), savedAt: Date.now() });
+        if (token === this.loadToken) this.setState({ pdfSaveStatus: 'PDF guardado automáticamente' });
+      } catch (err) {
+        console.warn('El navegador no ha podido guardar el PDF:', err);
+        if (token === this.loadToken) this.setState({ pdfSaveStatus: 'El PDF no se pudo guardar: vuelve a cargarlo al entrar' });
+      }
+    }
     const doc = await this.pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
     this.texts = {}; this._prod = {};
     for (let n = 1; n <= doc.numPages; n++) {
@@ -2932,7 +2980,7 @@ class Component extends DCLogic {
     return {
       zoomLabel: Math.round(zoom * 100) + '%', zoomIn: () => setZoom(zoom + 0.1), zoomOut: () => setZoom(zoom - 0.1), zoomReset: () => setZoom(1),
       noPdf: !loading && !pages.length && !fileName, openLabel: fileName ? 'Abrir otro PDF' : 'Abrir PDF',
-      fileName, loading, viewerRef: this.viewerRef, qtyRef: this.qtyRef,
+      fileName, loading, pdfSaveStatus: this.state.pdfSaveStatus, viewerRef: this.viewerRef, qtyRef: this.qtyRef,
       spinner: React.createElement('div', { style: { width: 28, height: 28, borderRadius: '50%', border: '1.5px solid var(--color-accent-200)', borderTopColor: 'var(--color-accent)', animation: 'spin 0.9s linear infinite' } }),
       pages: pages.map(p => ({
         n: p.n, bg: `url("${p.img}")`, aspect: String(p.ratio), w: Math.round(1000 * zoom * Math.min(1, p.ratio * 1.25)) + 'px',
